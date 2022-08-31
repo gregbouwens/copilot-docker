@@ -3,7 +3,7 @@
 #  https://aws.github.io/copilot-cli/docs/manifest/lb-web-service/
 
 # Your service name will be used in naming your resources like log groups, ECS services, etc.
-name: fe
+name: greg-wp
 type: Load Balanced Web Service
 
 # Distribute traffic to your service.
@@ -46,4 +46,4 @@ storage:
 
 variables:
   MYSQL_CLIENT_FLAVOR: mysql
-  WORDPRESS_BLOG_NAME: HELLO COPILOT
+  WORDPRESS_BLOG_NAME: HELLO COPILOT FROM WORDPRESS

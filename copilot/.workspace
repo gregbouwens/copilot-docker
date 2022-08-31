@@ -1,1 +1,2 @@
-application: wordpress
+application: blog
+path: ""

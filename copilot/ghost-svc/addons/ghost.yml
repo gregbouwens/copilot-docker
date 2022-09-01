@@ -9,46 +9,47 @@ Parameters:
     Type: String
     Description: The name of the service, job, or workflow being deployed.
   # Customize your Aurora Serverless cluster by setting the default value of the following parameters.
-  wpDBName:
+  ghostDBName:
     Type: String
     Description: The name of the initial database to be created in the DB cluster.
     Default: main
     # Cannot have special characters
     # Naming constraints: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Limits.html#RDS_Limits.Constraints
-  wpDBAutoPauseSeconds:
+  ghostDBAutoPauseSeconds:
     Type: Number
     Description: The duration in seconds before the cluster pauses.
     Default: 1000
 Mappings:
-  wpEnvScalingConfigurationMap:
-    test:
+  ghostEnvScalingConfigurationMap: 
+    dev:
       "DBMinCapacity": 1 # AllowedValues: [1, 2, 4, 8, 16, 32, 64, 128, 256]
       "DBMaxCapacity": 8 # AllowedValues: [1, 2, 4, 8, 16, 32, 64, 128, 256]
-    prod:
+    All:
       "DBMinCapacity": 1 # AllowedValues: [1, 2, 4, 8, 16, 32, 64, 128, 256]
       "DBMaxCapacity": 8 # AllowedValues: [1, 2, 4, 8, 16, 32, 64, 128, 256]
+
 Resources:
-  wpDBSubnetGroup:
+  ghostDBSubnetGroup:
     Type: 'AWS::RDS::DBSubnetGroup'
     Properties:
       DBSubnetGroupDescription: Group of Copilot private subnets for Aurora cluster.
       SubnetIds:
         !Split [',', { 'Fn::ImportValue': !Sub '${App}-${Env}-PrivateSubnets' }]
-  wpSecurityGroup:
+  ghostSecurityGroup:
     Metadata:
-      'aws:copilot:description': 'A security group for your workload to access the DB cluster wp'
+      'aws:copilot:description': 'A security group for your workload to access the DB cluster ghost'
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupDescription: !Sub 'The Security Group for ${Name} to access DB cluster wp.'
+      GroupDescription: !Sub 'The Security Group for ${Name} to access DB cluster ghost.'
       VpcId:
         Fn::ImportValue:
           !Sub '${App}-${Env}-VpcId'
       Tags:
         - Key: Name
           Value: !Sub 'copilot-${App}-${Env}-${Name}-Aurora'
-  wpDBClusterSecurityGroup:
-    Metadata: 
-      'aws:copilot:description': 'A security group for the database cluster.'
+  ghostDBClusterSecurityGroup:
+    Metadata:
+      'aws:copilot:description': 'A security group for your DB cluster ghost'
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: The Security Group for the database cluster.
@@ -57,13 +58,13 @@ Resources:
           FromPort: 3306
           IpProtocol: tcp
           Description: !Sub 'From the Aurora Security Group of the workload ${Name}.'
-          SourceSecurityGroupId: !Ref wpSecurityGroup
+          SourceSecurityGroupId: !Ref ghostSecurityGroup
       VpcId:
         Fn::ImportValue:
           !Sub '${App}-${Env}-VpcId'
-  wpAuroraSecret:
+  ghostAuroraSecret:
     Metadata:
-      'aws:copilot:description': 'A secret to hold information about the database'
+      'aws:copilot:description': 'A Secrets Manager secret to store your DB credentials'
     Type: AWS::SecretsManager::Secret
     Properties:
       Description: !Sub Aurora main user secret for ${AWS::StackName}
@@ -73,46 +74,48 @@ Resources:
         ExcludePunctuation: true
         IncludeSpace: false
         PasswordLength: 16
-  wpDBClusterParameterGroup:
+  ghostDBClusterParameterGroup:
+    Metadata:
+      'aws:copilot:description': 'A DB parameter group for engine configuration values'
     Type: 'AWS::RDS::DBClusterParameterGroup'
     Properties:
       Description: !Ref 'AWS::StackName'
       Family: 'aurora-mysql5.7'
       Parameters:
         character_set_client: 'utf8'
-  wpDBCluster:
+  ghostDBCluster:
     Metadata:
-      'aws:copilot:description': 'A serverless Aurora cluster with autoscaling and autopause.'
+      'aws:copilot:description': 'The ghost Aurora Serverless database cluster'
     Type: 'AWS::RDS::DBCluster'
     Properties:
       MasterUsername:
-        !Join [ "",  [ '{{resolve:secretsmanager:', !Ref wpAuroraSecret, ":SecretString:username}}" ]]
+        !Join [ "",  [ '{{resolve:secretsmanager:', !Ref ghostAuroraSecret, ":SecretString:username}}" ]]
       MasterUserPassword:
-        !Join [ "",  [ '{{resolve:secretsmanager:', !Ref wpAuroraSecret, ":SecretString:password}}" ]]
-      DatabaseName: !Ref wpDBName
+        !Join [ "",  [ '{{resolve:secretsmanager:', !Ref ghostAuroraSecret, ":SecretString:password}}" ]]
+      DatabaseName: !Ref ghostDBName
       Engine: 'aurora-mysql'
       EngineVersion: '5.7.mysql_aurora.2.07.1'
       EngineMode: serverless
-      DBClusterParameterGroupName: !Ref wpDBClusterParameterGroup
-      DBSubnetGroupName: !Ref wpDBSubnetGroup
+      DBClusterParameterGroupName: !Ref ghostDBClusterParameterGroup
+      DBSubnetGroupName: !Ref ghostDBSubnetGroup
       VpcSecurityGroupIds:
-        - !Ref wpDBClusterSecurityGroup
+        - !Ref ghostDBClusterSecurityGroup
       ScalingConfiguration:
         AutoPause: true
-        MinCapacity: !FindInMap [wpEnvScalingConfigurationMap, !Ref Env, DBMinCapacity]
-        MaxCapacity: !FindInMap [wpEnvScalingConfigurationMap, !Ref Env, DBMaxCapacity]
-        SecondsUntilAutoPause: !Ref wpDBAutoPauseSeconds
-  wpSecretAuroraClusterAttachment:
+        # Replace "All" below with "!Ref Env" to set different autoscaling limits per environment.
+        MinCapacity: !FindInMap [ghostEnvScalingConfigurationMap, All, DBMinCapacity]
+        MaxCapacity: !FindInMap [ghostEnvScalingConfigurationMap, All, DBMaxCapacity]
+        SecondsUntilAutoPause: !Ref ghostDBAutoPauseSeconds
+  ghostSecretAuroraClusterAttachment:
     Type: AWS::SecretsManager::SecretTargetAttachment
     Properties:
-      SecretId: !Ref wpAuroraSecret
-      TargetId: !Ref wpDBCluster
+      SecretId: !Ref ghostAuroraSecret
+      TargetId: !Ref ghostDBCluster
       TargetType: AWS::RDS::DBCluster
 Outputs:
-  wpSecret: # injected as WP_SECRET environment variable by Copilot.
+  ghostSecret: # injected as GHOST_SECRET environment variable by Copilot.
     Description: "The JSON secret that holds the database username and password. Fields are 'host', 'port', 'dbname', 'username', 'password', 'dbClusterIdentifier' and 'engine'"
-    Value: !Ref wpAuroraSecret
-  wpSecurityGroup:
+    Value: !Ref ghostAuroraSecret
+  ghostSecurityGroup:
     Description: "The security group to attach to the workload."
-    Value: !Ref wpSecurityGroup
-
+    Value: !Ref ghostSecurityGroup

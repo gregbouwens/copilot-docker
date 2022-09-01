@@ -1,0 +1,51 @@
+ 2002  copilot init --type 'Load Balanced Web Service' --app wordpress --name greg-wp --dockerfile ./Dockerfile --deploy
+ 2004  copilot app delete
+ 2006  copilot init --type 'Load Balanced Web Service' --app wordpress --name greg-wp --dockerfile ./Dockerfile --deploy
+ 2010  ls copilot/
+ 2011  ls copilot/.workspace 
+ 2012  cat copilot/.workspace 
+ 2014  copilot app delete
+ 2016  copilot app init
+ 2019  copilot app init --domain
+ 2020  copilot app init --domain blog.cowabunga.link
+ 2021  copilot app init --domain cowabunga.link
+ 2023  copilot init --type 'Load Balanced Web Service' --app wordpress --name greg-wp --dockerfile ./Dockerfile --deploy
+ 2024  copilot init --type 'Load Balanced Web Service' --app blog --name greg-wp --dockerfile ./Dockerfile --deploy
+ 2026  copilot init --type 'Load Balanced Web Service' --app blog --name greg-wp --dockerfile ./Dockerfile --deploy
+ 2036  copilot svc status
+ 2037  copilot deploy -n greg-wp -e test
+ 2046  copilot app delete
+ 2051  copilot storage init
+ 2053  copilot app init
+ 2055  copilot svc status
+ 2060  copilot app init
+ 2061  copilot storage init
+ 2064  copilot svc status
+ 2065  copilot storage init
+ 2066  copilot init --type 'Load Balanced Web Service' --app blog --name greg-wp
+ 2067  copilot storage init
+ 2070  copilot init --type 'Load Balanced Web Service' --app blog --name greg-wp --dockerfile ./Dockerfile --deploy
+ 2071  copilot svc delete --name greg-wp
+ 2072  copilot svc init --name greg-wp
+ 2074  copilot init --type 'Load Balanced Web Service' --app blog --name greg-wp --dockerfile ./Dockerfile --deploy
+ 2076  cd copilot
+ 2085  copilot init --type 'Load Balanced Web Service' --app wordpress --name greg-wp --dockerfile ./Dockerfile --deploy
+ 2087  copilot init --type 'Load Balanced Web Service' --app blog --name greg-wp --dockerfile ./Dockerfile --deploy
+ 2088  copilot svc delete --name greg-wp
+ 2089  copilot init --type 'Load Balanced Web Service' --app blog --name greg-wp --dockerfile ./Dockerfile --deploy
+ 2090  copilot app init --domain cowabunga.link
+ 2091  copilot init
+ 2092  copilot init --type 'Load Balanced Web Service' --app blog --name greg-wp --dockerfile ./Dockerfile --deploy
+ 2093  copilot svc delete --name greg-wp
+ 2094  copilot svc init --name greg-wp
+ 2095  copilot svc deploy --name greg-wp --env test
+ 2097  copilot app init --domain cowabunga.link
+ 2098  copilot svc deploy --name greg-wp --env test
+ 2100  copilot app ls
+ 2101  copilot app show
+ 2102  copilot app init --domain cowabunga.link --resource-tags department=Marketing,team=GregMarketingSkunkworks
+ 2103  copilot app ls
+ 2104  copilot app show
+ 2105  copilot svc deploy
+ 2107  history | grep copilot
+ 2108  history | grep copilot > copilot.txt

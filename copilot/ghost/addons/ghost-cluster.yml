@@ -1,0 +1,118 @@
+Parameters:
+  App:
+    Type: String
+    Description: Your application's name.
+  Env:
+    Type: String
+    Description: The environment name your service, job, or workflow is being deployed to.
+  Name:
+    Type: String
+    Description: The name of the service, job, or workflow being deployed.
+  # Customize your Aurora Serverless cluster by setting the default value of the following parameters.
+  gregwpclusterDBName:
+    Type: String
+    Description: The name of the initial database to be created in the DB cluster.
+    Default: ghost
+    # Cannot have special characters
+    # Naming constraints: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Limits.html#RDS_Limits.Constraints
+  gregwpclusterDBAutoPauseSeconds:
+    Type: Number
+    Description: The duration in seconds before the cluster pauses.
+    Default: 1000
+Mappings:
+  gregwpclusterEnvScalingConfigurationMap: 
+    All:
+      "DBMinCapacity": 1 # AllowedValues: [1, 2, 4, 8, 16, 32, 64, 128, 256]
+      "DBMaxCapacity": 8 # AllowedValues: [1, 2, 4, 8, 16, 32, 64, 128, 256]
+
+Resources:
+  gregwpclusterDBSubnetGroup:
+    Type: 'AWS::RDS::DBSubnetGroup'
+    Properties:
+      DBSubnetGroupDescription: Group of Copilot private subnets for Aurora cluster.
+      SubnetIds:
+        !Split [',', { 'Fn::ImportValue': !Sub '${App}-${Env}-PrivateSubnets' }]
+  gregwpclusterSecurityGroup:
+    Metadata:
+      'aws:copilot:description': 'A security group for your workload to access the DB cluster gregwpcluster'
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: !Sub 'The Security Group for ${Name} to access DB cluster gregwpcluster.'
+      VpcId:
+        Fn::ImportValue:
+          !Sub '${App}-${Env}-VpcId'
+      Tags:
+        - Key: Name
+          Value: !Sub 'copilot-${App}-${Env}-${Name}-Aurora'
+  gregwpclusterDBClusterSecurityGroup:
+    Metadata:
+      'aws:copilot:description': 'A security group for your DB cluster gregwpcluster'
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: The Security Group for the database cluster.
+      SecurityGroupIngress:
+        - ToPort: 3306
+          FromPort: 3306
+          IpProtocol: tcp
+          Description: !Sub 'From the Aurora Security Group of the workload ${Name}.'
+          SourceSecurityGroupId: !Ref gregwpclusterSecurityGroup
+      VpcId:
+        Fn::ImportValue:
+          !Sub '${App}-${Env}-VpcId'
+  gregwpclusterAuroraSecret:
+    Metadata:
+      'aws:copilot:description': 'A Secrets Manager secret to store your DB credentials'
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: !Sub Aurora main user secret for ${AWS::StackName}
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "admin"}'
+        GenerateStringKey: "password"
+        ExcludePunctuation: true
+        IncludeSpace: false
+        PasswordLength: 16
+  gregwpclusterDBClusterParameterGroup:
+    Metadata:
+      'aws:copilot:description': 'A DB parameter group for engine configuration values'
+    Type: 'AWS::RDS::DBClusterParameterGroup'
+    Properties:
+      Description: !Ref 'AWS::StackName'
+      Family: 'aurora-mysql8.0'
+      Parameters:
+        character_set_client: 'utf8'
+  gregwpclusterDBCluster:
+    Metadata:
+      'aws:copilot:description': 'The gregwpcluster Aurora Serverless database cluster'
+    Type: 'AWS::RDS::DBCluster'
+    Properties:
+      MasterUsername:
+        !Join [ "",  [ '{{resolve:secretsmanager:', !Ref gregwpclusterAuroraSecret, ":SecretString:username}}" ]]
+      MasterUserPassword:
+        !Join [ "",  [ '{{resolve:secretsmanager:', !Ref gregwpclusterAuroraSecret, ":SecretString:password}}" ]]
+      DatabaseName: !Ref gregwpclusterDBName
+      Engine: 'aurora-mysql'
+      EngineVersion: '5.7.mysql_aurora.2.07.1'
+      EngineMode: serverless
+      DBClusterParameterGroupName: !Ref gregwpclusterDBClusterParameterGroup
+      DBSubnetGroupName: !Ref gregwpclusterDBSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref gregwpclusterDBClusterSecurityGroup
+      ScalingConfiguration:
+        AutoPause: true
+        # Replace "All" below with "!Ref Env" to set different autoscaling limits per environment.
+        MinCapacity: !FindInMap [gregwpclusterEnvScalingConfigurationMap, All, DBMinCapacity]
+        MaxCapacity: !FindInMap [gregwpclusterEnvScalingConfigurationMap, All, DBMaxCapacity]
+        SecondsUntilAutoPause: !Ref gregwpclusterDBAutoPauseSeconds
+  gregwpclusterSecretAuroraClusterAttachment:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Properties:
+      SecretId: !Ref gregwpclusterAuroraSecret
+      TargetId: !Ref gregwpclusterDBCluster
+      TargetType: AWS::RDS::DBCluster
+Outputs:
+  gregwpclusterSecret: # injected as GREGWPCLUSTER_SECRET environment variable by Copilot.
+    Description: "The JSON secret that holds the database username and password. Fields are 'host', 'port', 'dbname', 'username', 'password', 'dbClusterIdentifier' and 'engine'"
+    Value: !Ref gregwpclusterAuroraSecret
+  gregwpclusterSecurityGroup:
+    Description: "The security group to attach to the workload."
+    Value: !Ref gregwpclusterSecurityGroup
